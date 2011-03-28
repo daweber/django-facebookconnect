@@ -58,6 +58,8 @@ One more thing you may want to know about is the dummy facebook data. If, for wh
         'proxied_email':None,
     }
 
+If you don't want users to set up accounts when first logging in with Facebook, set FACEBOOK_USE_DUMMY_ACCOUNT to True in settings.py and a dummy account will always be created when users first sign up, bypassing the setup stage.
+
 Facebook API
 ------------
 

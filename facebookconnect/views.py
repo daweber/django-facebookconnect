@@ -34,7 +34,7 @@ from facebook.djangofb import require_login as require_fb_login
 from facebookconnect.models import FacebookProfile
 from facebookconnect.forms import FacebookUserCreationForm
 
-def facebook_login(request, redirect_url=None,
+def facebook_login(request, redirect_url="/",
                    template_name='facebook/login.html',
                    extra_context=None):
     """
@@ -80,9 +80,31 @@ def facebook_login(request, redirect_url=None,
                 log.debug("This account is disabled.")
                 raise FacebookAuthError('This account is disabled.')
         elif request.facebook.uid:
-            #we have to set this user up
-            log.debug("Redirecting to setup")
-            return HttpResponseRedirect(url)
+            if getattr(settings, "FACEBOOK_USE_DUMMY_ACCOUNT", False):
+                #check that this fb user is not already in the system
+                try:
+                    FacebookProfile.objects.get(facebook_id=request.facebook.uid)
+                    # already setup, move along please
+                    return HttpResponseRedirect(redirect_url)
+                except FacebookProfile.DoesNotExist, e:
+                    # not in the db, ok to continue
+                    pass
+
+                profile = FacebookProfile(facebook_id=request.facebook.uid)
+                user = User(username=request.facebook.uid,
+                            email=profile.email)
+                user.set_unusable_password()
+                user.save()
+                profile.user = user
+                profile.save()
+                log.info("Added user and profile for %s!" % request.facebook.uid)
+                user = authenticate(request=request)
+                login(request, user)
+                return HttpResponseRedirect(redirect_url)
+            else:
+                #we have to set this user up
+                log.debug("Redirecting to setup")
+                return HttpResponseRedirect(url)
     
     # User is already logged in
     elif request.user.is_authenticated:
